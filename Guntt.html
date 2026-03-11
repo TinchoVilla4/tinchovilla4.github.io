@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Gantt Interactivo - Proyecto Integrador</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
+        h2 { color: #2c3e50; }
+        .panel-control { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+        .grupo-input { display: flex; flex-direction: column; }
+        label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #34495e; }
+        input, select, button { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px; }
+        button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        button:hover { background-color: #3498db; }
+        button.peligro { background-color: #e74c3c; }
+        button.peligro:hover { background-color: #c0392b; }
+        #gantt_div { width: 100%; height: 500px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+    <h2>Planificación de Misión Espacial</h2>
+
+    <div class="panel-control">
+        <div class="grupo-input">
+            <label>ID Tarea (Ej: T1)</label>
+            <input type="text" id="taskId" placeholder="ID único">
+        </div>
+        <div class="grupo-input">
+            <label>Nombre de la Tarea</label>
+            <input type="text" id="taskName" placeholder="Ej: Revisión MCR">
+        </div>
+        <div class="grupo-input">
+            <label>Inicio</label>
+            <input type="date" id="taskStart">
+        </div>
+        <div class="grupo-input">
+            <label>Fin</label>
+            <input type="date" id="taskEnd">
+        </div>
+        <div class="grupo-input">
+            <label>Prioridad (Color)</label>
+            <select id="taskPriority">
+                <option value="Critica">Crítica (Rojo)</option>
+                <option value="Alta">Alta (Naranja)</option>
+                <option value="Media">Media (Verde)</option>
+                <option value="Hito">Hito (Morado)</option>
+            </select>
+        </div>
+        <div class="grupo-input">
+            <label>Margen / Slack (Días)</label>
+            <input type="number" id="taskSlack" value="0" min="0">
+        </div>
+        <button onclick="agregarTarea()">Agregar / Actualizar Tarea</button>
+        <button class="peligro" onclick="limpiarTareas()">Borrar Todo</button>
+    </div>
+
+    <div id="gantt_div"></div>
+
+    <script>
+        google.charts.load('current', {'packages':['gantt']});
+        google.charts.setOnLoadCallback(inicializar);
+
+        // Variables globales
+        let tareas = [];
+
+        function inicializar() {
+            // Cargar tareas guardadas en el navegador
+            const tareasGuardadas = localStorage.getItem('tareasMision');
+            if (tareasGuardadas) {
+                tareas = JSON.parse(tareasGuardadas);
+            } else {
+                // Tarea de ejemplo si está vacío
+                tareas = [{
+                    id: 'MCR', nombre: 'Revisión del Concepto (MCR)',
+                    inicio: '2026-03-25', fin: '2026-03-27',
+                    prioridad: 'Hito', slack: 0
+                }];
+            }
+            dibujarGrafico();
+        }
+
+        function agregarTarea() {
+            const id = document.getElementById('taskId').value;
+            const nombre = document.getElementById('taskName').value;
+            const inicio = document.getElementById('taskStart').value;
+            const fin = document.getElementById('taskEnd').value;
+            const prioridad = document.getElementById('taskPriority').value;
+            const slack = parseInt(document.getElementById('taskSlack').value);
+
+            if (!id || !nombre || !inicio || !fin) {
+                alert("Por favor, completa el ID, Nombre, Inicio y Fin.");
+                return;
+            }
+
+            // Crear el objeto de la tarea
+            const nuevaTarea = { id, nombre, inicio, fin, prioridad, slack };
+
+            // Revisar si la tarea ya existe para actualizarla, o agregarla si es nueva
+            const index = tareas.findIndex(t => t.id === id);
+            if (index !== -1) {
+                tareas[index] = nuevaTarea;
+            } else {
+                tareas.push(nuevaTarea);
+            }
+
+            // Guardar en el navegador y redibujar
+            localStorage.setItem('tareasMision', JSON.stringify(tareas));
+            dibujarGrafico();
+        }
+
+        function limpiarTareas() {
+            if(confirm("¿Seguro que quieres borrar todas las tareas del proyecto?")) {
+                tareas = [];
+                localStorage.removeItem('tareasMision');
+                dibujarGrafico();
+            }
+        }
+
+        function dibujarGrafico() {
+            const data = new google.visualization.DataTable();
+            data.addColumn('string', 'Task ID');
+            data.addColumn('string', 'Task Name');
+            data.addColumn('string', 'Resource'); // Usamos esto para la prioridad/color
+            data.addColumn('date', 'Start Date');
+            data.addColumn('date', 'End Date');
+            data.addColumn('number', 'Duration');
+            data.addColumn('number', 'Percent Complete');
+            data.addColumn('string', 'Dependencies');
+
+            // Convertir nuestras tareas al formato que exige Google Charts
+            const filas = tareas.map(t => {
+                // Sumamos el slack (margen) convirtiendo días a milisegundos
+                const fechaFinOriginal = new Date(t.fin);
+                const fechaFinConMargen = new Date(fechaFinOriginal.getTime() + (t.slack * 24 * 60 * 60 * 1000));
+
+                return [
+                    t.id, 
+                    t.nombre + (t.slack > 0 ? ` (+${t.slack}d margen)` : ''), 
+                    t.prioridad, 
+                    new Date(t.inicio), 
+                    fechaFinConMargen, 
+                    null, 
+                    0, 
+                    null
+                ];
+            });
+
+            data.addRows(filas);
+
+            const options = {
+                height: 500,
+                gantt: {
+                    trackHeight: 30,
+                    // Definimos colores fijos para las prioridades (Resources)
+                    palette: [
+                        { "color": "#ef553b", "dark": "#c0392b", "light": "#e74c3c" }, // Critica
+                        { "color": "#ffa15a", "dark": "#e67e22", "light": "#f39c12" }, // Alta
+                        { "color": "#00cc96", "dark": "#27ae60", "light": "#2ecc71" }, // Media
+                        { "color": "#ab63fa", "dark": "#8e44ad", "light": "#9b59b6" }  // Hito
+                    ]
+                }
+            };
+
+            const chart = new google.visualization.Gantt(document.getElementById('gantt_div'));
+            
+            // Si no hay tareas, evitamos que Google Charts tire error
+            if(tareas.length > 0) {
+                chart.draw(data, options);
+            } else {
+                document.getElementById('gantt_div').innerHTML = "<p style='text-align:center; padding-top:200px; color:#7f8c8d;'>No hay tareas. Agrega una desde el panel superior.</p>";
+            }
+        }
+    </script>
+</body>
+</html>
