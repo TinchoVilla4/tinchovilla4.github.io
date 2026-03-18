@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gantt Interactivo - Misión Masa Líquida</title>
+    <title>Gantt Interactivo - Misión Titan Turtle</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
@@ -15,21 +15,24 @@
         button:hover { background-color: #3498db; }
         button.peligro { background-color: #e74c3c; }
         button.peligro:hover { background-color: #c0392b; }
+        button.editar { background-color: #f39c12; }
+        button.editar:hover { background-color: #d68910; }
         #gantt_div { width: 100%; height: 500px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; }
         
         /* Estilos de la ventana emergente (Modal) */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 350px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; }
         .modal-content h3 { margin-top: 0; color: #2c3e50; }
         .modal-info { text-align: left; margin: 15px 0; font-size: 14px; color: #34495e; }
         .modal-enlace { display: inline-block; margin: 10px 0; padding: 8px 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
         .modal-enlace:hover { background: #2ecc71; }
-        .modal-botones { display: flex; justify-content: space-between; margin-top: 20px; }
+        .modal-botones { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px;}
+        .modal-botones button { flex: 1; }
     </style>
 </head>
 <body>
 
-    <h2>Planificación de Misión Espacial</h2>
+    <h2>Planificación de Misión Espacial (Titan Turtle)</h2>
 
     <div class="panel-control">
         <div class="grupo-input">
@@ -74,13 +77,15 @@
         <div class="modal-content">
             <h3 id="modalTitulo">Nombre de Tarea</h3>
             <div class="modal-info">
-                <p><strong>ID:</strong> <span id="modalId"></span></p> <p><strong>Fechas:</strong> <span id="modalFechas"></span></p>
+                <p><strong>ID:</strong> <span id="modalId"></span></p> 
+                <p><strong>Fechas:</strong> <span id="modalFechas"></span></p>
                 <p><strong>Margen:</strong> <span id="modalMargen"></span> días</p>
             </div>
             <a id="modalLinkBtn" href="#" target="_blank" class="modal-enlace" style="display:none;">Ir al Documento / Link</a>
             <div class="modal-botones">
                 <button id="btnCerrarModal" style="background:#7f8c8d;">Cerrar</button>
-                <button id="btnEliminarTarea" class="peligro">Eliminar Tarea</button>
+                <button id="btnCargarEdicion" class="editar">Editar Tarea</button>
+                <button id="btnEliminarTarea" class="peligro">Eliminar</button>
             </div>
         </div>
     </div>
@@ -89,16 +94,16 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // === PEGA TU CONFIGURACIÓN DE FIREBASE AQUÍ ===
+        // === CONFIGURACIÓN DE FIREBASE ORIGINAL ===
         const firebaseConfig = {
-  apiKey: "AIzaSyBuvfgmSajhahjRLTEcmvPEFcnmOlBRsXQ",
-  authDomain: "gunnt-1d1d5.firebaseapp.com",
-  projectId: "gunnt-1d1d5",
-  storageBucket: "gunnt-1d1d5.firebasestorage.app",
-  messagingSenderId: "627368123808",
-  appId: "1:627368123808:web:196ac231052aa4782d18c5",
-  measurementId: "G-0SML2ZBG5Y"
-};
+          apiKey: "AIzaSyBuvfgmSajhahjRLTEcmvPEFcnmOlBRsXQ",
+          authDomain: "gunnt-1d1d5.firebaseapp.com",
+          projectId: "gunnt-1d1d5",
+          storageBucket: "gunnt-1d1d5.firebasestorage.app",
+          messagingSenderId: "627368123808",
+          appId: "1:627368123808:web:196ac231052aa4782d18c5",
+          measurementId: "G-0SML2ZBG5Y"
+        };
         // ===============================================
 
         const app = initializeApp(firebaseConfig);
@@ -107,13 +112,14 @@
         let tareas = [];
         let chartReady = false;
         let chartData = null; 
-        let ganttChartObj = null; // Variable global para controlar el gráfico y sus selecciones
+        let ganttChartObj = null;
 
+        // --- CORRECCIÓN DE COLORES (Rojos más fuertes) ---
         const mapaColores = {
-            "Critica": { color: "#ef553b" }, "Critica_slack": { color: "#f5b7b1" },
-            "Alta": { color: "#ffa15a" }, "Alta_slack": { color: "#fad7a1" },
-            "Media": { color: "#00cc96" }, "Media_slack": { color: "#a9dfbf" },
-            "Hito": { color: "#ab63fa" }, "Hito_slack": { color: "#d7bde2" }
+            "Critica": { color: "#d32f2f" }, "Critica_slack": { color: "#ef9a9a" }, // Rojo fuerte
+            "Alta": { color: "#f57c00" }, "Alta_slack": { color: "#ffcc80" },       // Naranja
+            "Media": { color: "#2e7d32" }, "Media_slack": { color: "#a5d6a7" },     // Verde oscuro
+            "Hito": { color: "#8e24aa" }, "Hito_slack": { color: "#ce93d8" }        // Morado
         };
 
         google.charts.load('current', {'packages':['gantt']});
@@ -141,21 +147,48 @@
 
             await setDoc(doc(db, "tareas_mision", id), { id, nombre, inicio, fin, prioridad, slack, link });
             
+            // Limpiar campos después de guardar
             document.getElementById('taskId').value = '';
             document.getElementById('taskName').value = '';
+            document.getElementById('taskStart').value = '';
+            document.getElementById('taskEnd').value = '';
             document.getElementById('taskLink').value = '';
             document.getElementById('taskSlack').value = '0';
+            document.getElementById('taskPriority').value = 'Critica';
         });
 
-        // Lógica para cerrar el modal y quitar el color negro (limpiar selección)
         document.getElementById('btnCerrarModal').addEventListener('click', () => {
             document.getElementById('modalTarea').style.display = 'none';
             if (ganttChartObj) {
-                ganttChartObj.setSelection([]); // Esto quita el highlight negro de la tarea
+                ganttChartObj.setSelection([]); 
             }
         });
 
         let idTareaActivaParaBorrar = null;
+
+        // --- NUEVA LÓGICA DE EDICIÓN ---
+        document.getElementById('btnCargarEdicion').addEventListener('click', () => {
+            if(!idTareaActivaParaBorrar) return;
+            const tarea = tareas.find(t => t.id === idTareaActivaParaBorrar);
+            
+            if(tarea) {
+                // Rellenar el formulario de arriba con los datos de la tarea
+                document.getElementById('taskId').value = tarea.id;
+                document.getElementById('taskName').value = tarea.nombre;
+                document.getElementById('taskStart').value = tarea.inicio;
+                document.getElementById('taskEnd').value = tarea.fin;
+                document.getElementById('taskPriority').value = tarea.prioridad;
+                document.getElementById('taskSlack').value = tarea.slack || 0;
+                document.getElementById('taskLink').value = tarea.link || '';
+
+                // Hacer scroll hacia arriba para que el usuario vea el formulario
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+
+                // Cerrar modal
+                document.getElementById('modalTarea').style.display = 'none';
+                if (ganttChartObj) ganttChartObj.setSelection([]);
+            }
+        });
 
         document.getElementById('btnEliminarTarea').addEventListener('click', async () => {
             if(idTareaActivaParaBorrar && confirm("¿Eliminar esta tarea definitivamente?")) {
@@ -190,13 +223,9 @@
 
                 if(!recursosUsados.includes(t.prioridad)) recursosUsados.push(t.prioridad);
 
-                // Aquí concatenamos el ID con el nombre para que se vea en el gráfico
                 const nombreVisible = `${t.id}: ${t.nombre}`;
-
-                // Fila de la tarea real
                 filas.push([ t.id, nombreVisible, t.prioridad, fechaInicio, fechaFinOriginal, null, 0, null ]);
 
-                // Fila del Margen (Slack)
                 if (t.slack > 0) {
                     const fechaFinConMargen = new Date(fechaFinOriginal.getTime() + (t.slack * 24 * 60 * 60 * 1000));
                     const recursoSlack = t.prioridad + "_slack";
@@ -209,7 +238,8 @@
 
             chartData.addRows(filas);
 
-            const paletaDinamica = recursosUsados.map(r => mapaColores[r]);
+            // Google Charts asigna los colores basado en el orden de los recursos encontrados, así que mapeamos correctamente.
+            const paletaDinamica = recursosUsados.map(r => mapaColores[r] ? mapaColores[r].color : '#333');
             const options = { height: 500, gantt: { trackHeight: 30, palette: paletaDinamica } };
             
             ganttChartObj = new google.visualization.Gantt(document.getElementById('gantt_div'));
@@ -233,7 +263,7 @@
 
             idTareaActivaParaBorrar = id;
             document.getElementById('modalTitulo').innerText = tarea.nombre;
-            document.getElementById('modalId').innerText = tarea.id; // Mostramos el ID en el modal
+            document.getElementById('modalId').innerText = tarea.id; 
             document.getElementById('modalFechas').innerText = `${tarea.inicio} hasta ${tarea.fin}`;
             document.getElementById('modalMargen').innerText = tarea.slack || 0;
             
