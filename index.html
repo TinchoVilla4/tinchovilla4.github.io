@@ -8,26 +8,29 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
         h2 { color: #2c3e50; }
         .panel-control { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
-        .grupo-input { display: flex; flex-direction: column; }
+        .grupo-input { display: flex; flex-direction: column; text-align: left; }
         label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #34495e; }
         input, select, button { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px; }
         button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
         button:hover { background-color: #3498db; }
         button.peligro { background-color: #e74c3c; }
         button.peligro:hover { background-color: #c0392b; }
-        button.editar { background-color: #f39c12; }
-        button.editar:hover { background-color: #d68910; }
+        button.guardar { background-color: #27ae60; }
+        button.guardar:hover { background-color: #2ecc71; }
         #gantt_div { width: 100%; height: 500px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; }
         
         /* Estilos de la ventana emergente (Modal) */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; }
-        .modal-content h3 { margin-top: 0; color: #2c3e50; }
-        .modal-info { text-align: left; margin: 15px 0; font-size: 14px; color: #34495e; }
-        .modal-enlace { display: inline-block; margin: 10px 0; padding: 8px 15px; background: #27ae60; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; }
-        .modal-enlace:hover { background: #2ecc71; }
-        .modal-botones { display: flex; justify-content: space-between; margin-top: 20px; gap: 10px;}
-        .modal-botones button { flex: 1; }
+        .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; max-height: 90vh; overflow-y: auto; }
+        .modal-content h3 { margin-top: 0; color: #2c3e50; margin-bottom: 20px; }
+        
+        /* Formulario dentro del modal */
+        .modal-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+        .modal-form .grupo-input input, .modal-form .grupo-input select { width: 100%; box-sizing: border-box; }
+        
+        .modal-botones { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;}
+        .modal-botones button { flex: 1; min-width: 100px; }
+        .enlace-abrir { font-size: 12px; color: #3498db; text-decoration: none; margin-top: 5px; display: inline-block; }
     </style>
 </head>
 <body>
@@ -35,10 +38,6 @@
     <h2>Planificación de Misión Espacial (Titan Turtle)</h2>
 
     <div class="panel-control">
-        <div class="grupo-input">
-            <label>ID Tarea (Ej: T1)</label>
-            <input type="text" id="taskId" placeholder="ID único">
-        </div>
         <div class="grupo-input">
             <label>Nombre de la Tarea</label>
             <input type="text" id="taskName" placeholder="Ej: Revisión MCR">
@@ -68,31 +67,64 @@
             <label>Enlace / Link (Opcional)</label>
             <input type="url" id="taskLink" placeholder="https://docs.google.com/..." style="width: 200px;">
         </div>
-        <button id="btnAgregar">Agregar / Actualizar</button>
+        <button id="btnAgregar">Agregar Tarea</button>
     </div>
 
     <div id="gantt_div"></div>
 
     <div id="modalTarea" class="modal-overlay">
         <div class="modal-content">
-            <h3 id="modalTitulo">Nombre de Tarea</h3>
-            <div class="modal-info">
-                <p><strong>ID:</strong> <span id="modalId"></span></p> 
-                <p><strong>Fechas:</strong> <span id="modalFechas"></span></p>
-                <p><strong>Margen:</strong> <span id="modalMargen"></span> días</p>
+            <h3>Editar Tarea</h3>
+            
+            <div class="modal-form">
+                <div class="grupo-input">
+                    <label>Nombre de la Tarea</label>
+                    <input type="text" id="editName">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="grupo-input" style="flex: 1;">
+                        <label>Inicio</label>
+                        <input type="date" id="editStart">
+                    </div>
+                    <div class="grupo-input" style="flex: 1;">
+                        <label>Fin</label>
+                        <input type="date" id="editEnd">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="grupo-input" style="flex: 2;">
+                        <label>Prioridad</label>
+                        <select id="editPriority">
+                            <option value="Critica">Crítica (Rojo)</option>
+                            <option value="Alta">Alta (Naranja)</option>
+                            <option value="Media">Media (Verde)</option>
+                            <option value="Hito">Hito (Morado)</option>
+                        </select>
+                    </div>
+                    <div class="grupo-input" style="flex: 1;">
+                        <label>Margen (Días)</label>
+                        <input type="number" id="editSlack" min="0">
+                    </div>
+                </div>
+                <div class="grupo-input">
+                    <label>Enlace / Link</label>
+                    <input type="url" id="editLink">
+                    <a id="btnAbrirLink" href="#" target="_blank" class="enlace-abrir" style="display: none;">🔗 Abrir enlace actual</a>
+                </div>
             </div>
-            <a id="modalLinkBtn" href="#" target="_blank" class="modal-enlace" style="display:none;">Ir al Documento / Link</a>
+
             <div class="modal-botones">
-                <button id="btnCerrarModal" style="background:#7f8c8d;">Cerrar</button>
-                <button id="btnCargarEdicion" class="editar">Editar Tarea</button>
+                <button id="btnGuardarEdicion" class="guardar">Guardar Cambios</button>
                 <button id="btnEliminarTarea" class="peligro">Eliminar</button>
+                <button id="btnCerrarModal" style="background:#7f8c8d;">Cancelar</button>
             </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // IMPORTANTE: Agregué 'updateDoc' a las importaciones
+        import { getFirestore, collection, onSnapshot, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
         // === CONFIGURACIÓN DE FIREBASE ORIGINAL ===
         const firebaseConfig = {
@@ -113,13 +145,13 @@
         let chartReady = false;
         let chartData = null; 
         let ganttChartObj = null;
+        let idTareaActiva = null; // Variable para saber qué tarea estamos editando
 
-        // --- CORRECCIÓN DE COLORES (Rojos más fuertes) ---
         const mapaColores = {
-            "Critica": { color: "#d32f2f" }, "Critica_slack": { color: "#ef9a9a" }, // Rojo fuerte
-            "Alta": { color: "#f57c00" }, "Alta_slack": { color: "#ffcc80" },       // Naranja
-            "Media": { color: "#2e7d32" }, "Media_slack": { color: "#a5d6a7" },     // Verde oscuro
-            "Hito": { color: "#8e24aa" }, "Hito_slack": { color: "#ce93d8" }        // Morado
+            "Critica": { color: "#d32f2f" }, "Critica_slack": { color: "#ef9a9a" },
+            "Alta": { color: "#f57c00" }, "Alta_slack": { color: "#ffcc80" },
+            "Media": { color: "#2e7d32" }, "Media_slack": { color: "#a5d6a7" },
+            "Hito": { color: "#8e24aa" }, "Hito_slack": { color: "#ce93d8" }
         };
 
         google.charts.load('current', {'packages':['gantt']});
@@ -134,8 +166,10 @@
             if(chartReady) dibujarGrafico();
         });
 
+        // --- CREAR NUEVA TAREA (Panel Superior) ---
         document.getElementById('btnAgregar').addEventListener('click', async () => {
-            const id = document.getElementById('taskId').value;
+            // Generamos un ID interno único automáticamente
+            const id = "T-" + Date.now(); 
             const nombre = document.getElementById('taskName').value;
             const inicio = document.getElementById('taskStart').value;
             const fin = document.getElementById('taskEnd').value;
@@ -143,12 +177,11 @@
             const slack = parseInt(document.getElementById('taskSlack').value) || 0;
             const link = document.getElementById('taskLink').value;
 
-            if (!id || !nombre || !inicio || !fin) { alert("Faltan datos obligatorios."); return; }
+            if (!nombre || !inicio || !fin) { alert("Faltan datos obligatorios (Nombre, Inicio, Fin)."); return; }
 
             await setDoc(doc(db, "tareas_mision", id), { id, nombre, inicio, fin, prioridad, slack, link });
             
-            // Limpiar campos después de guardar
-            document.getElementById('taskId').value = '';
+            // Limpiar campos
             document.getElementById('taskName').value = '';
             document.getElementById('taskStart').value = '';
             document.getElementById('taskEnd').value = '';
@@ -157,44 +190,43 @@
             document.getElementById('taskPriority').value = 'Critica';
         });
 
+        // --- CERRAR MODAL ---
         document.getElementById('btnCerrarModal').addEventListener('click', () => {
             document.getElementById('modalTarea').style.display = 'none';
-            if (ganttChartObj) {
-                ganttChartObj.setSelection([]); 
-            }
+            if (ganttChartObj) ganttChartObj.setSelection([]); 
+            idTareaActiva = null;
         });
 
-        let idTareaActivaParaBorrar = null;
+        // --- GUARDAR EDICIÓN DESDE EL MODAL ---
+        document.getElementById('btnGuardarEdicion').addEventListener('click', async () => {
+            if(!idTareaActiva) return;
 
-        // --- NUEVA LÓGICA DE EDICIÓN ---
-        document.getElementById('btnCargarEdicion').addEventListener('click', () => {
-            if(!idTareaActivaParaBorrar) return;
-            const tarea = tareas.find(t => t.id === idTareaActivaParaBorrar);
-            
-            if(tarea) {
-                // Rellenar el formulario de arriba con los datos de la tarea
-                document.getElementById('taskId').value = tarea.id;
-                document.getElementById('taskName').value = tarea.nombre;
-                document.getElementById('taskStart').value = tarea.inicio;
-                document.getElementById('taskEnd').value = tarea.fin;
-                document.getElementById('taskPriority').value = tarea.prioridad;
-                document.getElementById('taskSlack').value = tarea.slack || 0;
-                document.getElementById('taskLink').value = tarea.link || '';
+            const nombre = document.getElementById('editName').value;
+            const inicio = document.getElementById('editStart').value;
+            const fin = document.getElementById('editEnd').value;
+            const prioridad = document.getElementById('editPriority').value;
+            const slack = parseInt(document.getElementById('editSlack').value) || 0;
+            const link = document.getElementById('editLink').value;
 
-                // Hacer scroll hacia arriba para que el usuario vea el formulario
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (!nombre || !inicio || !fin) { alert("Faltan datos obligatorios."); return; }
 
-                // Cerrar modal
-                document.getElementById('modalTarea').style.display = 'none';
-                if (ganttChartObj) ganttChartObj.setSelection([]);
-            }
+            // Usamos updateDoc para actualizar solo los campos en la base de datos
+            await updateDoc(doc(db, "tareas_mision", idTareaActiva), { 
+                nombre, inicio, fin, prioridad, slack, link 
+            });
+
+            document.getElementById('modalTarea').style.display = 'none';
+            if (ganttChartObj) ganttChartObj.setSelection([]);
+            idTareaActiva = null;
         });
 
+        // --- ELIMINAR TAREA ---
         document.getElementById('btnEliminarTarea').addEventListener('click', async () => {
-            if(idTareaActivaParaBorrar && confirm("¿Eliminar esta tarea definitivamente?")) {
-                await deleteDoc(doc(db, "tareas_mision", idTareaActivaParaBorrar));
+            if(idTareaActiva && confirm("¿Eliminar esta tarea definitivamente?")) {
+                await deleteDoc(doc(db, "tareas_mision", idTareaActiva));
                 document.getElementById('modalTarea').style.display = 'none';
                 if (ganttChartObj) ganttChartObj.setSelection([]);
+                idTareaActiva = null;
             }
         });
 
@@ -223,8 +255,8 @@
 
                 if(!recursosUsados.includes(t.prioridad)) recursosUsados.push(t.prioridad);
 
-                const nombreVisible = `${t.id}: ${t.nombre}`;
-                filas.push([ t.id, nombreVisible, t.prioridad, fechaInicio, fechaFinOriginal, null, 0, null ]);
+                // Solo mostramos el nombre en el gráfico, ocultando el ID generado
+                filas.push([ t.id, t.nombre, t.prioridad, fechaInicio, fechaFinOriginal, null, 0, null ]);
 
                 if (t.slack > 0) {
                     const fechaFinConMargen = new Date(fechaFinOriginal.getTime() + (t.slack * 24 * 60 * 60 * 1000));
@@ -238,7 +270,6 @@
 
             chartData.addRows(filas);
 
-            // Google Charts asigna los colores basado en el orden de los recursos encontrados, así que mapeamos correctamente.
             const paletaDinamica = recursosUsados.map(r => mapaColores[r] ? mapaColores[r].color : '#333');
             const options = { height: 500, gantt: { trackHeight: 30, palette: paletaDinamica } };
             
@@ -261,18 +292,23 @@
             const tarea = tareas.find(t => t.id === id);
             if(!tarea) return;
 
-            idTareaActivaParaBorrar = id;
-            document.getElementById('modalTitulo').innerText = tarea.nombre;
-            document.getElementById('modalId').innerText = tarea.id; 
-            document.getElementById('modalFechas').innerText = `${tarea.inicio} hasta ${tarea.fin}`;
-            document.getElementById('modalMargen').innerText = tarea.slack || 0;
+            idTareaActiva = id;
             
-            const linkBtn = document.getElementById('modalLinkBtn');
+            // Rellenar los inputs del modal con los datos actuales
+            document.getElementById('editName').value = tarea.nombre;
+            document.getElementById('editStart').value = tarea.inicio;
+            document.getElementById('editEnd').value = tarea.fin;
+            document.getElementById('editPriority').value = tarea.prioridad;
+            document.getElementById('editSlack').value = tarea.slack || 0;
+            document.getElementById('editLink').value = tarea.link || '';
+            
+            // Manejar el enlace de apertura rápida si existe un link
+            const btnAbrir = document.getElementById('btnAbrirLink');
             if(tarea.link && tarea.link.startsWith("http")) {
-                linkBtn.href = tarea.link;
-                linkBtn.style.display = "inline-block";
+                btnAbrir.href = tarea.link;
+                btnAbrir.style.display = "inline-block";
             } else {
-                linkBtn.style.display = "none";
+                btnAbrir.style.display = "none";
             }
 
             document.getElementById('modalTarea').style.display = 'flex';
