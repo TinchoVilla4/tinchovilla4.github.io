@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Gantt Interactivo</title>
+    <title>Gantt Interactivo - Misión Titan Turtle</title>
     <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; margin: 20px; }
@@ -11,6 +11,10 @@
         .grupo-input { display: flex; flex-direction: column; text-align: left; }
         label { font-size: 12px; font-weight: bold; margin-bottom: 5px; color: #34495e; }
         input, select, button { padding: 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: 14px; }
+        
+        /* Estilo especial para el Slider de Zoom */
+        input[type="range"] { padding: 0; cursor: pointer; width: 150px; }
+        
         button { background-color: #2980b9; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.3s; }
         button:hover { background-color: #3498db; }
         button.peligro { background-color: #e74c3c; }
@@ -18,18 +22,31 @@
         button.guardar { background-color: #27ae60; }
         button.guardar:hover { background-color: #2ecc71; }
         
-        /* FIX: Altura dinámica y scroll horizontal */
-        #gantt_div { width: 100%; min-height: 500px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); cursor: pointer; overflow-x: auto; }
+        /* NUEVO: Contenedor Wrapper para permitir el scroll horizontal fluido */
+        .gantt-wrapper { 
+            width: 100%; 
+            overflow-x: auto; /* Aquí nace la barra de desplazamiento horizontal */
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            padding-bottom: 10px;
+        }
+        
+        /* Modificamos el div del gráfico para que responda al Zoom */
+        #gantt_div { 
+            width: 100%; /* Este valor cambiará dinámicamente con el Slider */
+            min-height: 500px; 
+            padding: 10px; 
+            cursor: grab; 
+        }
+        #gantt_div:active { cursor: grabbing; }
         
         /* Estilos de la ventana emergente (Modal) */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; }
         .modal-content { background: white; padding: 25px; border-radius: 8px; width: 400px; max-width: 90%; box-shadow: 0 4px 15px rgba(0,0,0,0.2); text-align: center; max-height: 90vh; overflow-y: auto; }
         .modal-content h3 { margin-top: 0; color: #2c3e50; margin-bottom: 20px; }
-        
-        /* Formulario dentro del modal */
         .modal-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
         .modal-form .grupo-input input, .modal-form .grupo-input select { width: 100%; box-sizing: border-box; }
-        
         .modal-botones { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;}
         .modal-botones button { flex: 1; min-width: 100px; }
         .enlace-abrir { font-size: 12px; color: #3498db; text-decoration: none; margin-top: 5px; display: inline-block; }
@@ -49,7 +66,7 @@
             <input type="date" id="taskStart">
         </div>
         <div class="grupo-input">
-            <label>Fin (Igual a Inicio para Hitos)</label>
+            <label>Fin</label>
             <input type="date" id="taskEnd">
         </div>
         <div class="grupo-input">
@@ -62,22 +79,31 @@
             </select>
         </div>
         <div class="grupo-input">
-            <label>Margen (Días)</label>
-            <input type="number" id="taskSlack" value="0" min="0" style="width: 70px;">
+            <label>Margen (días)</label>
+            <input type="number" id="taskSlack" value="0" min="0" style="width: 60px;">
         </div>
-        <div class="grupo-input">
-            <label>Enlace / Link (Opcional)</label>
-            <input type="url" id="taskLink" placeholder="https://docs.google.com/..." style="width: 200px;">
+        <button id="btnAgregar">Agregar</button>
+        
+        <div style="width: 100%; display: flex; justify-content: space-between; margin-top: 10px; border-top: 1px solid #ecf0f1; padding-top: 10px;">
+            <div class="grupo-input" style="flex-direction: row; align-items: center; gap: 10px;">
+                <label style="margin: 0;">🔍 Nivel de Zoom:</label>
+                <input type="range" id="zoomSlider" min="100" max="600" value="100" step="50">
+                <span id="zoomValue" style="font-size: 12px; font-weight: bold; color: #34495e;">100%</span>
+            </div>
+            <div class="grupo-input" style="flex-direction: row; align-items: center; gap: 10px;">
+                <label style="margin: 0;">Link Base:</label>
+                <input type="url" id="taskLink" placeholder="https://docs..." style="width: 250px;">
+            </div>
         </div>
-        <button id="btnAgregar">Agregar Tarea</button>
     </div>
 
-    <div id="gantt_div"></div>
+    <div class="gantt-wrapper" id="ganttWrapper">
+        <div id="gantt_div"></div>
+    </div>
 
     <div id="modalTarea" class="modal-overlay">
         <div class="modal-content">
             <h3>Editar Tarea</h3>
-            
             <div class="modal-form">
                 <div class="grupo-input">
                     <label>Nombre de la Tarea</label>
@@ -114,7 +140,6 @@
                     <a id="btnAbrirLink" href="#" target="_blank" class="enlace-abrir" style="display: none;">🔗 Abrir enlace actual</a>
                 </div>
             </div>
-
             <div class="modal-botones">
                 <button id="btnGuardarEdicion" class="guardar">Guardar Cambios</button>
                 <button id="btnEliminarTarea" class="peligro">Eliminar</button>
@@ -127,7 +152,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, deleteDoc, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
-        // === CONFIGURACIÓN DE FIREBASE ORIGINAL ===
         const firebaseConfig = {
           apiKey: "AIzaSyBuvfgmSajhahjRLTEcmvPEFcnmOlBRsXQ",
           authDomain: "gunnt-1d1d5.firebaseapp.com",
@@ -137,7 +161,6 @@
           appId: "1:627368123808:web:196ac231052aa4782d18c5",
           measurementId: "G-0SML2ZBG5Y"
         };
-        // ===============================================
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -155,6 +178,18 @@
             "Hito": { color: "#8e24aa" }, "Hito_slack": { color: "#ce93d8" }
         };
 
+        // --- LÓGICA DEL ZOOM ---
+        document.getElementById('zoomSlider').addEventListener('change', (e) => {
+            const porcentaje = e.target.value;
+            document.getElementById('zoomValue').innerText = porcentaje + '%';
+            document.getElementById('gantt_div').style.width = porcentaje + '%';
+            
+            // Re-dibujamos el gráfico para que Google adapte el SVG al nuevo ancho
+            if(chartReady && tareas.length > 0) {
+                dibujarGrafico();
+            }
+        });
+
         google.charts.load('current', {'packages':['gantt']});
         google.charts.setOnLoadCallback(() => {
             chartReady = true;
@@ -167,7 +202,6 @@
             if(chartReady) dibujarGrafico();
         });
 
-        // --- CREAR NUEVA TAREA ---
         document.getElementById('btnAgregar').addEventListener('click', async () => {
             const id = "T-" + Date.now(); 
             const nombre = document.getElementById('taskName').value;
@@ -177,31 +211,23 @@
             const slack = parseInt(document.getElementById('taskSlack').value) || 0;
             const link = document.getElementById('taskLink').value;
 
-            if (!nombre || !inicio || !fin) { alert("Faltan datos obligatorios (Nombre, Inicio, Fin)."); return; }
-            
-            if (new Date(inicio) > new Date(fin)) {
-                alert("Anomalía temporal detectada: La fecha de inicio no puede ser posterior a la fecha de fin.");
-                return;
-            }
+            if (!nombre || !inicio || !fin) { alert("Faltan datos obligatorios."); return; }
+            if (new Date(inicio) > new Date(fin)) { alert("Error temporal."); return; }
 
             await setDoc(doc(db, "tareas_mision", id), { id, nombre, inicio, fin, prioridad, slack, link });
             
             document.getElementById('taskName').value = '';
             document.getElementById('taskStart').value = '';
             document.getElementById('taskEnd').value = '';
-            document.getElementById('taskLink').value = '';
             document.getElementById('taskSlack').value = '0';
-            document.getElementById('taskPriority').value = 'Critica';
         });
 
-        // --- CERRAR MODAL ---
         document.getElementById('btnCerrarModal').addEventListener('click', () => {
             document.getElementById('modalTarea').style.display = 'none';
             if (ganttChartObj) ganttChartObj.setSelection([]); 
             idTareaActiva = null;
         });
 
-        // --- GUARDAR EDICIÓN DESDE EL MODAL ---
         document.getElementById('btnGuardarEdicion').addEventListener('click', async () => {
             if(!idTareaActiva) return;
 
@@ -213,11 +239,7 @@
             const link = document.getElementById('editLink').value;
 
             if (!nombre || !inicio || !fin) { alert("Faltan datos obligatorios."); return; }
-            
-            if (new Date(inicio) > new Date(fin)) {
-                alert("Anomalía temporal detectada: La fecha de inicio no puede ser posterior a la fecha de fin.");
-                return;
-            }
+            if (new Date(inicio) > new Date(fin)) { alert("Error temporal."); return; }
 
             await updateDoc(doc(db, "tareas_mision", idTareaActiva), { 
                 nombre, inicio, fin, prioridad, slack, link 
@@ -228,7 +250,6 @@
             idTareaActiva = null;
         });
 
-        // --- ELIMINAR TAREA ---
         document.getElementById('btnEliminarTarea').addEventListener('click', async () => {
             if(idTareaActiva && confirm("¿Eliminar esta tarea definitivamente?")) {
                 await deleteDoc(doc(db, "tareas_mision", idTareaActiva));
@@ -240,7 +261,7 @@
 
         function dibujarGrafico() {
             if (tareas.length === 0) {
-                document.getElementById('gantt_div').innerHTML = "<p style='text-align:center; padding-top:200px; color:#7f8c8d;'>No hay tareas. Agrega la primera arriba.</p>";
+                document.getElementById('gantt_div').innerHTML = "<p style='text-align:center; padding-top:200px; color:#7f8c8d;'>No hay tareas.</p>";
                 return;
             }
 
@@ -258,7 +279,6 @@
             const filas = [];
 
             tareas.forEach(t => {
-                // FIX MATEMÁTICO: Desarmamos el string YYYY-MM-DD para forzar los números exactos
                 const partesInicio = t.inicio.split('-');
                 const partesFin = t.fin.split('-');
                 
@@ -270,16 +290,14 @@
 
                 if(!recursosUsados.includes(t.prioridad)) recursosUsados.push(t.prioridad);
 
-                // --- FIX DEFINITIVO PARA HITOS VISIBLES ---
                 if (t.inicio === t.fin) {
                     fechaFinOriginal = null; 
                     duracionPrincipal = 0;   
-                    porcentajeCompleto = 100; // Colorea el rombo de morado sólido
+                    porcentajeCompleto = 100; 
                 }
 
                 filas.push([ t.id, t.nombre, t.prioridad, fechaInicio, fechaFinOriginal, duracionPrincipal, porcentajeCompleto, null ]);
 
-                // Lógica del margen (Evitamos margen si es un hito)
                 if (t.slack > 0 && t.inicio !== t.fin) {
                     const recursoSlack = t.prioridad + "_slack";
                     if(!recursosUsados.includes(recursoSlack)) recursosUsados.push(recursoSlack);
@@ -291,7 +309,6 @@
 
             chartData.addRows(filas);
 
-            // FIX: Altura dinámica para que no colapse el eje horizontal
             const alturaCalculada = (filas.length * 30) + 80;
             const alturaFinal = alturaCalculada > 500 ? alturaCalculada : 500;
 
