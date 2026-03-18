@@ -256,19 +256,26 @@ if (new Date(inicio) > new Date(fin)) {
 
             tareas.forEach(t => {
                 const fechaInicio = new Date(t.inicio + "T00:00:00"); 
-                const fechaFinOriginal = new Date(t.fin + "T00:00:00");
+                let fechaFinOriginal = new Date(t.fin + "T00:00:00");
+                let duracionPrincipal = null; // Por defecto la calcula Google con las dos fechas
 
                 if(!recursosUsados.includes(t.prioridad)) recursosUsados.push(t.prioridad);
 
-                // Tarea principal
-                filas.push([ t.id, t.nombre, t.prioridad, fechaInicio, fechaFinOriginal, null, 0, null ]);
+                // --- FIX PARA LOS HITOS (ROMBOS) ---
+                // Si la fecha de inicio es igual a la de fin, forzamos el formato de Hito
+                if (t.inicio === t.fin) {
+                    fechaFinOriginal = null; // Anulamos la fecha de fin
+                    duracionPrincipal = 0;   // Forzamos la duración a 0 milisegundos
+                }
 
+                // Tarea principal (Ahora acepta el rombo si duracionPrincipal es 0)
+                filas.push([ t.id, t.nombre, t.prioridad, fechaInicio, fechaFinOriginal, duracionPrincipal, 0, null ]);
+
+                // Lógica del margen (intacta)
                 if (t.slack > 0) {
                     const recursoSlack = t.prioridad + "_slack";
                     if(!recursosUsados.includes(recursoSlack)) recursosUsados.push(recursoSlack);
 
-                    // LA MAGIA: Pasamos null a las fechas y calculamos la duración en milisegundos.
-                    // Google lo acoplará perfectamente a t.id gracias a la dependencia de la columna 8.
                     const duracionMilisegundos = t.slack * 24 * 60 * 60 * 1000;
                     filas.push([ t.id + "_slack", "Margen (" + t.slack + "d)", recursoSlack, null, null, duracionMilisegundos, 0, t.id ]);
                 }
